@@ -21,9 +21,9 @@ spec:
         ports:
         - containerPort: 8079
         securityContext:
-          runAsNonRoot: true
-          runAsUser: 10001
+#          runAsNonRoot: true
+#          runAsUser: 10001
           capabilities:
             drop:
               - all
-          readOnlyRootFilesystem: true
+#          readOnlyRootFilesystem: true
