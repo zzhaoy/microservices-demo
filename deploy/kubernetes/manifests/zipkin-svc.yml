@@ -1,16 +1,18 @@
----
 apiVersion: v1
 kind: Service
 metadata:
-  name: user
+  name: zipkin
   labels:
-    name: user
+    name: zipkin
   namespace: sock-shop
 spec:
+  type: NodePort
   ports:
     # the port that this service should serve on
-  - port: 80
-    targetPort: 80
+  - port: 9411
+    targetPort: 9411
+    nodePort: 30002
   selector:
-    name: user
+    name: zipkin
+
 

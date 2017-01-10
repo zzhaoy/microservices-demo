@@ -7,19 +7,9 @@ deployDoc: true
 
 Please refer to the [new Docker Swarm introduction](http://container-solutions.com/hail-new-docker-swarm/)
 
-### Blockers
-
-Currently, new Docker Swarm does not support running containers in privileged mode.
-Maybe it will be allowed in the future.
-Please refer to the issue [1030](https://github.com/docker/swarmkit/issues/1030#issuecomment-232299819).
-This prevents running Weave Scope in a normal way, since it needs privileged mode.
-A work around exists documented [here](https://github.com/weaveworks/scope-global-swarm-service)
-
-Running global plugins is not supported either.
-
 ### Pre-requisities
 
-* [Docker v1.12.3+](https://www.docker.com/products/overview)
+* [Docker v1.12.3+](https://www.docker.com/products/overview) (IMPORTANT: Beta version is required)
 * [Docker Compose](https://docs.docker.com/compose/install/)
 * *Optional* [Vagrant](https://www.vagrantup.com/downloads.html)
 * *Optional* [Virtualbox](https://www.virtualbox.org/wiki/Downloads)
@@ -58,14 +48,14 @@ cd microservices-demo
     docker swarm init
     docker-compose pull
     docker-compose bundle
-    docker deploy dockerswarm
+    docker deploy --bundle-file dockerswarm.dab sockshop
 ~~~~
 
 * Navigate to <a href="http://localhost:30000" target="_blank">http://localhost:30000</a> to verify that the demo works.
 
 ### Run tests
 
-There is a seperate load-test available to simulate user traffic to the application. For more information see [Load Test](#loadtest). 
+There is a separate load-test available to simulate user traffic to the application. For more information see [Load Test](#loadtest). 
 This will send some traffic to the application, which will form the connection graph that you can view in Scope or Weave Cloud. 
 
 Feel free to run it by issuing the following command:
@@ -94,20 +84,6 @@ export AWS_DEFAULT_REGION=[YOURDEFAULTREGION]
     aws ec2 describe-key-pairs -\-key-name docker-swarm &>/dev/null
     if [ $? -eq 0 ]; then aws ec2 delete-key-pair -\-key-name docker-swarm; fi
 
-    cat > /root/boot.sh <<EOF
-#!/usr/bin/env bash
-docker service create -\-constraint='node.role == manager' -\-network=dockerswarm_default -\-name healthcheck andrius/alpine-ruby sleep 1200
-sleep 30
-ID=\$(docker ps | grep healthcheck | awk '{print \$1}')
-docker cp /home/ubuntu/healthcheck.rb \$ID:/healthcheck.rb
-EOF
-
-    cat > /root/test.sh <<EOF
-#!/usr/bin/env bash
-ID=\$(docker ps | grep healthcheck | awk '{print \$1}')
-docker exec \$ID ruby /healthcheck.rb -s user,catalogue,cart,shipping,payment,orders -d 300
-EOF
-
 -->
 
 #### AWS
@@ -120,14 +96,6 @@ EOF
     terraform apply deploy/docker-swarm/infra/aws/
 
 <!-- deploy-doc-end -->
-
-<!-- deploy-doc-hidden create-infrastructure
-
-    master_ip=$(terraform output -json | jq -r '.master_address.value' )
-    scp -i ~/.ssh/docker-swarm.pem deploy/healthcheck.rb /root/boot.sh /root/test.sh ubuntu@$master_ip:/home/ubuntu/
-    ssh -i ~/.ssh/docker-swarm.pem ubuntu@$master_ip "chmod +x boot.sh; ./boot.sh"
-
--->
 
 #### gcloud
 
@@ -147,7 +115,7 @@ EOF
 
 ### Run tests
 
-There is a seperate load-test available to simulate user traffic to the application. For more information see [Load Test](#loadtest).  
+There is a separate load-test available to simulate user traffic to the application. For more information see [Load Test](#loadtest).  
 This will send some traffic to the application, which will form the connection graph that you can view in Scope or Weave Cloud. 
 
 #### AWS & gcloud
@@ -157,7 +125,7 @@ Using any IP from the command: `terraform output`
 <!-- deploy-doc-start run-tests -->
 
     master_ip=$(terraform output -json | jq -r '.master_address.value' )
-    docker run --rm weaveworksdemos/load-test -d 60 -h $master_ip:30000 -c 3 -r 10
+    docker run --rm weaveworksdemos/load-test -d 300 -h $master_ip:30000 -c 3 -r 10
 
 <!-- deploy-doc-end -->
 
@@ -167,8 +135,18 @@ Using any IP from the command: `terraform output`
 
 <!-- deploy-doc-hidden run-tests
 
+    cat > /root/boot.sh <<-EOF
+#!/usr/bin/env bash
+docker build -t healthcheck -f Dockerfile-healthcheck .
+docker service create -\-constraint='node.role == manager' -\-network=dockerswarm_default -\-name healthcheck healthcheck -s user,catalogue,cart,shipping,payment,orders -r 5
+sleep 60
+ID=\$(docker ps -a | grep healthcheck | awk '{print \$1}' | head -n1)
+docker logs -f \$ID
+EOF
+
     master_ip=$(terraform output -json | jq -r '.master_address.value' )
-    ssh -i ~/.ssh/docker-swarm.pem ubuntu@$master_ip "chmod +x test.sh; ./test.sh"
+    scp -i ~/.ssh/docker-swarm.pem /root/boot.sh deploy/healthcheck.rb deploy/Dockerfile-healthcheck ubuntu@$master_ip:/home/ubuntu/
+    ssh -i ~/.ssh/docker-swarm.pem ubuntu@$master_ip "chmod +x boot.sh; ./boot.sh"
 
     if [ $? -ne 0 ]; then
         exit 1;

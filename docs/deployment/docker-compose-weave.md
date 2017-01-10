@@ -51,7 +51,7 @@ Weave Cloud (hosted platform). Get a token by [registering here](http://cloud.we
 <!-- deploy-doc-start create-infrastructure -->
 
     weave launch
-    docker-compose -f deploy/docker-compose-weave/docker-compose.yml up -d
+    docker-compose -f deploy/docker-compose/docker-compose.yml up -d
 
 <!-- deploy-doc-end -->
 
@@ -63,29 +63,32 @@ This will send some traffic to the application, which will form the connection g
 
 <!-- deploy-doc-hidden run-tests
 
-    docker run -td -\-name healthcheck andrius/alpine-ruby /bin/sh
+    docker build -t healthcheck -f deploy/Dockerfile-healthcheck deploy/.
+    docker create -t -\-name healthcheck healthcheck -s user,catalogue,queue-master,cart,shipping,payment,orders -d 120 -r 5
     docker network connect dockercomposeweave_secure healthcheck
     docker network connect dockercomposeweave_internal healthcheck
     docker network connect dockercomposeweave_external healthcheck
     docker network connect dockercomposeweave_backoffice healthcheck
-    docker cp deploy/healthcheck.rb healthcheck:/healthcheck.rb
+    docker start -a healthcheck
 
-    docker exec -t healthcheck ruby /healthcheck.rb -s user,catalogue,queue-master,cart,shipping,payment,orders -d 120
     if [ $? -ne 0 ]; then
-        docker rm -f healthcheck
+        docker rm healthcheck
         exit 1;
-    else
-        docker rm -f healthcheck
     fi
+    docker rm healthcheck
 
 -->
 
+### Opentracing
+
+Zipkin is part of the deployment and has been written into some of the services.  While the system is up you can view the traces in
+Zipkin at http://localhost:9411.  Currently orders provide the most comprehensive traces.
 
 ### Cleaning up
 
 <!-- deploy-doc-start destroy-infrastructure -->
 
-    docker-compose -f deploy/docker-compose-weave/docker-compose.yml down
+    docker-compose -f deploy/docker-compose/docker-compose.yml down
     weave stop
 
 <!-- deploy-doc-end -->
