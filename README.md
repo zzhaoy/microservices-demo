@@ -1,31 +1,21 @@
-[![Build Status](https://travis-ci.org/microservices-demo/microservices-demo.svg?branch=master)](https://travis-ci.org/microservices-demo/microservices-demo)
+# Swagger generated server
 
-# Sock Shop : A Microservice Demo Application
+CSE Spring MVC Server
 
-The application is the user-facing part of an online shop that sells socks. It is intended to aid the demonstration and testing of microservice and cloud native technologies.
 
-It is built using [Spring Boot](http://projects.spring.io/spring-boot/), [Go kit](http://gokit.io) and [Node.js](https://nodejs.org/) and is packaged in Docker containers.
+## Overview
+这里的代码是根据用户提供的swagger.yaml文件自动生成。生成的代码总的来说分成以下几类：
 
-You can read more about the [application design](./docs/internal-docs/design.md).
+1，入口main函数在com.service.springmvc.SpringmvcServer这个类中。
 
-## Deployment Platforms
+2，com.service.controller.CseDemoImpl这个类插入通过定义springmvc的annotation，拦截用户请求、解析参数，并将处理的handler代理给cseDemoAgent类。
 
-The [deploy folder](./deploy/) contains scripts and instructions to provision the application onto your favourite platform. 
+3，com.service.controller.CseDemoAgent类是用户实现具体handler实现的类，理论上只需要用户在这个类里面实现业务逻辑。
 
-Please let us know if there is a platform that you would like to see supported.
+4，com.service.controller.CseDemo这个类定义了由swagger.yaml里定义了的operation的函数footprint。它可以理解为是cseDemoAgent实现类的接口。
 
-## Bugs, Feature Requests and Contributing
+5，com.service.model这个包下面是swagger.yaml里面定义的definitions，也就是model层的类。
 
-We'd love to see community contributions. We like to keep it simple and use Github issues to track bugs and feature requests and pull requests to manage contributions. See the [contribution information](.github/CONTRIBUTING.md) for more information.
+6，resource目录下定义了一些配置文件，包括log4j的配置文件，微服务的配置信息，以及swagger协议文件等等。
 
-## Screenshot
-
-![Sock Shop frontend](./docs/assets/sockshop-frontend.png)
-
-## Visualizing the application
-
-Use [Weave Scope](http://weave.works/products/weave-scope/) or [Weave Cloud](http://cloud.weave.works/) to visualize the application once it's running in the selected [target platform](./deploy/).
-
-![Sock Shop in Weave Scope](./docs/assets/sockshop-scope.png)
-
-## 
+7，特别注意两点：microservice.yaml里面配置信息要填写正确，生成的有可能有些偏差；swagger.yaml里面的x-java-interface配置项一定要指定为com.service.controller.CseDemo。
